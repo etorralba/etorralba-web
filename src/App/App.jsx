@@ -13,7 +13,7 @@ import { Controls } from "../Three/Controls";
 export const App = () => {
   const [state, setState] = useState({
     data: {
-      segmentCount: 5,
+      segmentCount: 4,
       radius: 3,
     },
   });

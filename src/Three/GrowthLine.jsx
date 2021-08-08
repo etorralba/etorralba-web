@@ -1,8 +1,11 @@
-import React from "react";
+import React, {useRef}from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 
 export const GrowthLine = ({ segmentCount, radius }) => {
+
+  const path = useRef();
+
   const points = [];
 
   // Generating circle points
@@ -14,37 +17,39 @@ export const GrowthLine = ({ segmentCount, radius }) => {
       0
     );
     points.push(currentVector);
-    if (i != 0) {
-      console.log(currentVector.distanceTo(points[i - 1]));
+  }
+
+  for (let i = 1; i < points.length; i++) {
+    let currentDistance = points[i-1].distanceTo(points[i]);
+    if (currentDistance >= 2) {
+      let newPoint = getPointInBetweenByLen(points[i],points[i-1],currentDistance/2)
+      points.splice(i,0,newPoint)
     }
   }
 
-  useFrame(() => {});
 
-  function insertList(array, index, element) {
-    console.log(`Original ${array}`);
-    array.splice(index, 0, element);
-    console.log(`New ${array}`);
-  }
 
-  const newVector = new THREE.Vector3(0, 0, 0);
+  // Methods
+  function getPointInBetweenByLen(pointA, pointB, length) {
 
-  insertList(points, 5, newVector);
+    var dir = pointB.clone().sub(pointA).normalize().multiplyScalar(length);
+    return pointA.clone().add(dir);
 
+}
+  
   const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-
   return (
     <>
       <group position={[0, 0, 0]}>
-        <lineLoop geometry={lineGeometry}>
+        <line geometry={lineGeometry} ref={path}>
           <lineBasicMaterial
             attach="material"
             color={"#9c88ff"}
             linewidth={10}
           />
-        </lineLoop>
+        </line>
         <points geometry={lineGeometry}>
-          <pointsMaterial size={0.1} />
+          <pointsMaterial size={0.2} />
         </points>
       </group>
     </>
