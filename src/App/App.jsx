@@ -13,7 +13,7 @@ import { Controls } from "../Three/Controls";
 export const App = () => {
   const [state, setState] = useState({
     data: {
-      segmentCount: 4,
+      segmentCount:50,
       radius: 3,
     },
   });
@@ -29,7 +29,7 @@ export const App = () => {
         <DatNumber path="segmentCount" label="Segment Count" />
         <DatNumber path="radius" label="Radius" />
       </DatGui>
-      <Canvas>
+      <Canvas >
         <GrowthLine segmentCount={state.data.segmentCount} radius={state.data.radius} />
         <Controls />
       </Canvas>
