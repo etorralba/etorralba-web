@@ -28,45 +28,34 @@ export const GrowthLine = ({ segmentCount, radius }) => {
   //useFrame
   useFrame(() => {
     let prevCount = Math.floor(drawCount);
-    drawCount = drawCount + 0.1;
+    drawCount = drawCount + 0.5;
     let pointList = path.current.geometry.attributes.position.array;
 
     if (Math.floor(drawCount) - prevCount === 1) {
-      path.current.material.color.setHSL(Math.random(), 1, 0.5);
-      for (let i = 2; i < pointList.length; i + 2) {
+      // path.current.material.color.setHSL(Math.random(), 1, 0.5);
+      for (let i = 2; i < pointList.length; i) {
         let x = pointList[i++];
         let y = pointList[i++];
         let z = pointList[i++];
 
-        if (i < pointList.length-3) {
-        
-          let currentPoint = new THREE.Vector3(x, y, z);
+        if (i > 2 && i < pointList.length - 3) {
+          let currentPoint = getCurrentPoint(i - 2, pointList);
           let prevPoint = getPrevPoint(i - 2, pointList);
-          console.log(currentPoint) 
           let nextPoint = getNextPoint(i, pointList);
-          console.log(nextPoint) 
 
           let repulsionVectorPrev = getDirection(currentPoint, prevPoint);
           let repulsionVectorNext = getDirection(nextPoint, currentPoint);
           let dir = new THREE.Vector3();
-          dir.add(repulsionVectorPrev);
-          dir.add(repulsionVectorNext);
+          dir.addVectors(repulsionVectorNext, repulsionVectorPrev);
 
           dir.normalize();
-          // console.log(dir)
-          pointList[i] += dir.z*0.01;
-          pointList[i--] += dir.y * 0.01;
-          pointList[i--] += dir.x * 0.01;
-          
-      
+          pointList[i++ - 3] += dir.z * 0.008;
+          pointList[i++ - 3] += dir.y * 0.008;
+          pointList[i++ - 3] += dir.x * 0.008;
 
-          path.current.children[0].setDirection(dir)
-          path.current.children[0].needsUpdate = true;
           path.current.geometry.attributes.position.needsUpdate = true;
         }
       }
-      console.log("actualizado");
-      console.log(pointList);
     }
   });
 
@@ -86,7 +75,7 @@ export const GrowthLine = ({ segmentCount, radius }) => {
     let y = pointList[index - 2];
     let z = pointList[index - 1];
 
-    let prevPoint = new THREE.Vector3(x, y, 0);
+    let prevPoint = new THREE.Vector3(x, y, z);
     return prevPoint;
   }
 
@@ -95,7 +84,15 @@ export const GrowthLine = ({ segmentCount, radius }) => {
     let y = pointList[index + 2];
     let z = pointList[index + 3];
 
-    let nextPoint = new THREE.Vector3((x)*-1, y, 0);
+    let nextPoint = new THREE.Vector3(x, y, z);
+    return nextPoint;
+  }
+  function getCurrentPoint(index, pointList) {
+    let x = pointList[index];
+    let y = pointList[index + 1];
+    let z = pointList[index + 2];
+
+    let nextPoint = new THREE.Vector3(x, y, z);
     return nextPoint;
   }
 
