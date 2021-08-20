@@ -5,7 +5,6 @@ import { useThree, useFrame } from "@react-three/fiber";
 // Growth Component
 export const GrowthLine = ({ segmentCount, radius }) => {
   const path = useRef();
-  const pointGroup = useRef();
 
   let points = [];
   let drawCount = 2;
@@ -24,45 +23,50 @@ export const GrowthLine = ({ segmentCount, radius }) => {
   points.splice(-1);
   const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
 
-  //Point Selection Visualization
-  const positions = new Float32Array(3 * 3);
-  const selectedPoints = new THREE.BufferGeometry();
-  selectedPoints.setAttribute("position", new THREE.BufferAttribute(positions,3));
+  //Arrow Helper
 
   //useFrame
   useFrame(() => {
     let prevCount = Math.floor(drawCount);
-    drawCount = drawCount + 0.005;
+    drawCount = drawCount + 0.1;
     let pointList = path.current.geometry.attributes.position.array;
 
     if (Math.floor(drawCount) - prevCount === 1) {
-      for (let i = 0; i < pointList.length; i + 3) {
+      path.current.material.color.setHSL(Math.random(), 1, 0.5);
+      for (let i = 2; i < pointList.length; i + 2) {
         let x = pointList[i++];
         let y = pointList[i++];
         let z = pointList[i++];
 
-        if (i != 0) {
+        if (i < pointList.length-3) {
+        
           let currentPoint = new THREE.Vector3(x, y, z);
-          let prevPoint = getPrevPoint(i, pointList);
+          let prevPoint = getPrevPoint(i - 2, pointList);
+          console.log(currentPoint) 
           let nextPoint = getNextPoint(i, pointList);
+          console.log(nextPoint) 
 
-          // console.log(pointList);
-          console.log(i);
-          console.log(currentPoint);
-          pointGroup.current.geometry.attributes.position.array[0] = currentPoint.x;
-          pointGroup.current.geometry.attributes.position.array[1] = currentPoint.x;
-          pointGroup.current.geometry.attributes.position.array[2] = currentPoint.x;
+          let repulsionVectorPrev = getDirection(currentPoint, prevPoint);
+          let repulsionVectorNext = getDirection(nextPoint, currentPoint);
+          let dir = new THREE.Vector3();
+          dir.add(repulsionVectorPrev);
+          dir.add(repulsionVectorNext);
 
-          // pointGroup.current.geometry.attributes.position.array[3] = prevPoint.x;
-          // pointGroup.current.geometry.attributes.position.array[4] = prevPoint.y;
-          // pointGroup.current.geometry.attributes.position.array[5] = prevPoint.z;
+          dir.normalize();
+          // console.log(dir)
+          pointList[i] += dir.z*0.01;
+          pointList[i--] += dir.y * 0.01;
+          pointList[i--] += dir.x * 0.01;
+          
+      
 
-          // pointGroup.current.geometry.attributes.position.array[6] = nextPoint.x;
-          // pointGroup.current.geometry.attributes.position.array[7] = nextPoint.y;
-          // pointGroup.current.geometry.attributes.position.array[8] = nextPoint.z;
+          path.current.children[0].setDirection(dir)
+          path.current.children[0].needsUpdate = true;
+          path.current.geometry.attributes.position.needsUpdate = true;
         }
       }
       console.log("actualizado");
+      console.log(pointList);
     }
   });
 
@@ -82,7 +86,7 @@ export const GrowthLine = ({ segmentCount, radius }) => {
     let y = pointList[index - 2];
     let z = pointList[index - 1];
 
-    let prevPoint = new THREE.Vector3(x, y, z);
+    let prevPoint = new THREE.Vector3(x, y, 0);
     return prevPoint;
   }
 
@@ -91,7 +95,7 @@ export const GrowthLine = ({ segmentCount, radius }) => {
     let y = pointList[index + 2];
     let z = pointList[index + 3];
 
-    let nextPoint = new THREE.Vector3(x, y, z);
+    let nextPoint = new THREE.Vector3((x)*-1, y, 0);
     return nextPoint;
   }
 
@@ -103,9 +107,7 @@ export const GrowthLine = ({ segmentCount, radius }) => {
         </line>
         <points geometry={lineGeometry} ref={path}>
           <pointsMaterial size={0.1} />
-        </points>
-        <points geometry={selectedPoints} ref={pointGroup}>
-          <pointsMaterial size={1} color={"blue"} />
+          <arrowHelper args={[, lineGeometry, 3, "yellow"]} />
         </points>
       </group>
     </>

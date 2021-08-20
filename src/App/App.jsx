@@ -14,7 +14,7 @@ export const App = () => {
   const [state, setState] = useState({
     data: {
       segmentCount:20,
-      radius: 3,
+      radius: 1,
     },
   });
 
