@@ -4,164 +4,180 @@ import { useThree, useFrame } from "@react-three/fiber";
 
 // Growth Component
 export const GrowthLine = ({ segmentCount, radius }) => {
-  const path = useRef();
+  //Geometry
+  const particle = useRef();
+  const lineMesh = useRef();
 
-  let points = [];
-  let drawCount = 2;
+  const particlesData = [];
+  const maxParticleCount = 1000;
+  let particleCount = 50;
+  const r = 10;
+  const rHalf = r / 2;
+  let particles;
+  let positions;
+  let particlePositions;
+  let frameCap = 2;
 
-  // Generating circle points
-  for (let i = 0; i <= segmentCount; i++) {
-    let theta = (i / segmentCount) * Math.PI * 2;
-    const currentVector = new THREE.Vector3(
-      Math.cos(theta) * radius,
+  const effectController = {
+    showDots: true,
+    showLines: true,
+    minDistance: 150,
+    limitConnections: false,
+    maxConnections: 20,
+    particleCount: 50,
+  };
 
-      Math.sin(theta) * radius,
-      0
-    );
-    points.push(currentVector);
+  // Max posible conection
+  const segments = maxParticleCount * maxParticleCount;
+  // Creates a Float32Array of max posible conexions size
+  positions = new Float32Array(segments * 3);
+
+  // Creates a Float32Array of maxParticleCount * 3
+  particles = new THREE.BufferGeometry();
+  particlePositions = new Float32Array(maxParticleCount * 3);
+
+  // Sets particle random position and velicity
+  for (let i = 0; i < maxParticleCount; i++) {
+    const x = Math.random() * r - rHalf;
+    const y = Math.random() * r - rHalf;
+    const z = Math.random() * r - rHalf;
+
+    // Gets Float32Arrtay x y z position base on iterator
+    particlePositions[i * 3] = x;
+    particlePositions[i * 3 + 1] = y;
+    particlePositions[i * 3 + 2] = z;
+
+    // Sets an object with aditional information
+    particlesData.push({
+      velocity: new THREE.Vector3(
+        -1 + Math.random() * 2,
+        -1 + Math.random() * 2,
+        -1 + Math.random() * 2
+      ),
+      numConnections: 0,
+    });
   }
-  points.splice(-1);
-  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
 
-  //Arrow Helper
+  // Set initial Draw Range
+  particles.setDrawRange(0, particleCount);
+  particles.setAttribute(
+    "position",
+    new THREE.BufferAttribute(particlePositions, 3).setUsage(
+      THREE.DynamicDrawUsage
+    )
+  );
 
-  //useFrame
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage)
+  );
+  geometry.computeBoundingSphere();
+  geometry.setDrawRange(0, 0);
+
+  console.log(particlesData);
+
   useFrame(() => {
-    let prevCount = Math.floor(drawCount);
-    drawCount = drawCount + 0.5;
-    let pointList = path.current.geometry.attributes.position.array;
+    let prevFrameCap = Math.floor(frameCap);
+    frameCap = frameCap + 0.1;
 
-    if (Math.floor(drawCount) - prevCount === 1) {
-      // path.current.material.color.setHSL(Math.random(), 1, 0.5);
-      for (let i = 2; i < pointList.length; i) {
-        let x = pointList[i++];
-        let y = pointList[i++];
-        let z = pointList[i++];
+    let vertexpos = 0;
+    let colorpos = 0;
+    let numConnected = 0;
 
-        if (i > 2 && i < pointList.length - 3) {
-          let currentPoint = getCurrentPoint(i - 2, pointList);
-          let prevPoint = getPrevPoint(i - 2, pointList);
-          let nextPoint = getNextPoint(i, pointList);
-
-          let repulsionVectorPrev = getDirection(currentPoint, prevPoint);
-          let repulsionVectorNext = getDirection(nextPoint, currentPoint);
-          let dir = new THREE.Vector3();
-          dir.addVectors(repulsionVectorNext, repulsionVectorPrev);
-
-          dir.normalize();
-          pointList[i++ - 3] += dir.z * 0.008;
-          pointList[i++ - 3] += dir.y * 0.008;
-          pointList[i++ - 3] += dir.x * 0.008;
-
-          path.current.geometry.attributes.position.needsUpdate = true;
-        }
+    if (Math.floor(frameCap) - prevFrameCap === 1) {
+      console.log("hols");
+      // All conections resets to 0
+      for (let i = 0; i < particleCount; i++) {
+        particlesData[i].numConnections = 0;
       }
+
+      for (let i = 0; i < particleCount; i++) {
+        const particleData = particlesData[i];
+        particlePositions[i * 3] += particleData.velocity.x;
+        particlePositions[i * 3 + 1] += particleData.velocity.y;
+        particlePositions[i * 3 + 2] += particleData.velocity.z;
+
+        if (
+          particlePositions[i * 3 + 1] < -rHalf ||
+          particlePositions[i * 3 + 1] > rHalf
+        )
+          particleData.velocity.y = -particleData.velocity.y;
+
+        if (
+          particlePositions[i * 3] < -rHalf ||
+          particlePositions[i * 3] > rHalf
+        )
+          particleData.velocity.x = -particleData.velocity.x;
+
+        if (
+          particlePositions[i * 3 + 2] < -rHalf ||
+          particlePositions[i * 3 + 2] > rHalf
+        )
+          particleData.velocity.z = -particleData.velocity.z;
+
+        if (
+          effectController.limitConnections &&
+          particleData.numConnections >= effectController.maxConnections
+        )
+          continue;
+
+        // Check collision
+        for (let j = i + 1; j < particleCount; j++) {
+          const particleDataB = particlesData[j];
+          if (
+            effectController.limitConnections &&
+            particleDataB.numConnections >= effectController.maxConnections
+          )
+            continue;
+
+          const dx = particlePositions[i * 3] - particlePositions[j * 3];
+          const dy =
+            particlePositions[i * 3 + 1] - particlePositions[j * 3 + 1];
+          const dz =
+            particlePositions[i * 3 + 2] - particlePositions[j * 3 + 2];
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          if (dist < effectController.minDistance) {
+            particleData.numConnections++;
+            particleDataB.numConnections++;
+
+            const alpha = 1.0 - dist / effectController.minDistance;
+
+            positions[vertexpos++] = particlePositions[i * 3];
+            positions[vertexpos++] = particlePositions[i * 3 + 1];
+            positions[vertexpos++] = particlePositions[i * 3 + 2];
+
+            positions[vertexpos++] = particlePositions[j * 3];
+            positions[vertexpos++] = particlePositions[j * 3 + 1];
+            positions[vertexpos++] = particlePositions[j * 3 + 2];
+            numConnected++;
+          }
+        }
+
+        lineMesh.current.geometry.setDrawRange(0, numConnected * 2);
+      }
+      lineMesh.current.geometry.attributes.position.needsUpdate = true;
+      particle.current.geometry.attributes.position.needsUpdate = true;
     }
   });
-
-  // Methods
-  function getPointInBetweenByLen(pointA, pointB, length) {
-    let dir = pointB.clone().sub(pointA).normalize().multiplyScalar(length);
-    return pointA.clone().add(dir);
-  }
-
-  function getDirection(v1, v2) {
-    let dir = new THREE.Vector3();
-    return dir.subVectors(v2, v1).normalize();
-  }
-
-  function getPrevPoint(index, pointList) {
-    let x = pointList[index - 3];
-    let y = pointList[index - 2];
-    let z = pointList[index - 1];
-
-    let prevPoint = new THREE.Vector3(x, y, z);
-    return prevPoint;
-  }
-
-  function getNextPoint(index, pointList) {
-    let x = pointList[index + 1];
-    let y = pointList[index + 2];
-    let z = pointList[index + 3];
-
-    let nextPoint = new THREE.Vector3(x, y, z);
-    return nextPoint;
-  }
-  function getCurrentPoint(index, pointList) {
-    let x = pointList[index];
-    let y = pointList[index + 1];
-    let z = pointList[index + 2];
-
-    let nextPoint = new THREE.Vector3(x, y, z);
-    return nextPoint;
-  }
 
   return (
     <>
       <group position={[0, 0, 0]}>
-        <line geometry={lineGeometry}>
-          <lineBasicMaterial attach="material" color={"white"} linewidth={10} />
-        </line>
-        <points geometry={lineGeometry} ref={path}>
-          <pointsMaterial size={0.1} />
-          <arrowHelper args={[, lineGeometry, 3, "yellow"]} />
+        <points geometry={particles} ref={particle}>
+          <pointsMaterial color={"white"} size={0.1} />
         </points>
+        <lineSegments geometry={geometry} ref={lineMesh}>
+          <lineBasicMaterial
+            attach="material"
+            color={"#9c88ff"}
+            linewidth={10}
+            linecap={"round"}
+            linejoin={"round"}
+          />
+        </lineSegments>
       </group>
     </>
   );
 };
-
-// const MAX_POINTS = segmentCount;
-
-// // Generate a Float32Array to store the information of a limit of points
-// const positions = new Float32Array(MAX_POINTS * 3);
-// // Set a geometry that takes the array an map
-// const geometry = new THREE.BufferGeometry();
-// geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-// let drawCount = 2;
-// geometry.setDrawRange(0, drawCount);
-
-// useFrame(() => {
-//   let prevCount = Math.floor(drawCount);
-//   drawCount = (drawCount + 0.01) % MAX_POINTS;
-
-//   path.current.geometry.setDrawRange(0, drawCount);
-//   const p = path.current.geometry.attributes.position.array;
-
-//     // updatePoints(p);
-//     // getMoveVector(p);
-
-//   if (Math.floor(drawCount) - prevCount === 1) {
-//     path.current.material.color.setHSL(Math.random(), 1, 0.5);
-//   }
-// });
-
-// function updatePoints(p) {
-//   let x, y, z, index;
-//   x = y = z = index = 0;
-
-//   for (let i = 0, l = MAX_POINTS; i < l; i++) {
-//     p[index++] = x;
-//     p[index++] = y;
-//     p[index++] = z;
-
-//     x += (Math.random() - 0.5) * 1.5;
-//     y += (Math.random() - 0.5) * 1.5;
-//     z += (Math.random() - 0.5) * 1.5;
-
-//   }
-// }
-
-// function getMoveVector(positions){
-//   var dir = new THREE.Vector3(); // create once an reuse it
-//   let x, y, z, index;
-//   x = y = z = index = 0;
-//   for (let i = 0, l = MAX_POINTS; i < l; i++) {
-//     positions[index++] = x;
-//     positions[index++] = y;
-//     positions[index++] = z;
-
-//     console.log(index)
-//   }
-// }
