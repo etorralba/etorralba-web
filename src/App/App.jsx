@@ -1,7 +1,6 @@
 // Libraries
-import React, { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import DatGui, { DatNumber } from "react-dat-gui";
+import React from "react";
+import { Canvas } from "@react-three/fiber";
 
 // Styles
 import styles from "./App.module.css";
@@ -11,26 +10,10 @@ import { GrowthLine } from "../Three/GrowthLine";
 import { Controls } from "../Three/Controls";
 
 export const App = () => {
-  const [state, setState] = useState({
-    data: {
-      segmentCount:10,
-      radius: 1,
-    },
-  });
-
-  function handleUpdate(newData) {
-    setState((prevState) => ({
-      data: { ...prevState.data, ...newData },
-    }));
-  }
   return (
     <div className={styles.canvas}>
-      <DatGui data={state.data} onUpdate={handleUpdate}>
-        <DatNumber path="segmentCount" label="Segment Count" />
-        <DatNumber path="radius" label="Radius" />
-      </DatGui>
-      <Canvas >
-        <GrowthLine segmentCount={state.data.segmentCount} radius={state.data.radius} />
+      <Canvas>
+        <GrowthLine />
         <Controls />
       </Canvas>
     </div>

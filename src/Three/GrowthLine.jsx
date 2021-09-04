@@ -1,9 +1,15 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+
 import * as THREE from "three";
-import { useThree, useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+
+import * as dat from "dat.gui";
 
 // Growth Component
-export const GrowthLine = ({ segmentCount, radius }) => {
+export const GrowthLine = () => {
+  const [sDots, setsDots] = useState();
+  const [sLines, setsLines] = useState();
+
   //Geometry
   const particle = useRef();
   const lineMesh = useRef();
@@ -11,26 +17,55 @@ export const GrowthLine = ({ segmentCount, radius }) => {
   const particlesData = [];
   const maxParticleCount = 1000;
   let particleCount = 50;
-  const r = 10;
+  const r = 200;
   const rHalf = r / 2;
   let particles;
-  let positions;
+  let positions, colors;
   let particlePositions;
   let frameCap = 2;
 
   const effectController = {
     showDots: true,
     showLines: true,
-    minDistance: 150,
+    minDistance: 60,
     limitConnections: false,
     maxConnections: 20,
     particleCount: 50,
   };
 
+
+
+  function initGUI() {
+    const gui = new dat.GUI();
+
+    gui.add(effectController, "showDots").onChange(function (value) {
+      setsDots(value);
+    });
+    gui.add(effectController, "showLines").onChange(function (value) {
+      setsLines(value);
+    });
+    gui.add(effectController, "minDistance", 1, 300);
+    gui.add(effectController, "limitConnections");
+    gui.add(effectController, "maxConnections", 0, 30, 1);
+    gui
+      .add(effectController, "particleCount", 0, maxParticleCount, 1)
+      .onChange(function (value) {
+        particleCount = parseInt(value);
+        particles.setDrawRange(0, particleCount);
+      });
+  }
+
+  useEffect(() => {
+    initGUI();
+  }, []);
+
+  useThree;
+
   // Max posible conection
   const segments = maxParticleCount * maxParticleCount;
   // Creates a Float32Array of max posible conexions size
   positions = new Float32Array(segments * 3);
+  colors = new Float32Array(segments * 3);
 
   // Creates a Float32Array of maxParticleCount * 3
   particles = new THREE.BufferGeometry();
@@ -38,9 +73,9 @@ export const GrowthLine = ({ segmentCount, radius }) => {
 
   // Sets particle random position and velicity
   for (let i = 0; i < maxParticleCount; i++) {
-    const x = Math.random() * r - rHalf;
-    const y = Math.random() * r - rHalf;
-    const z = Math.random() * r - rHalf;
+    const x = Math.random() * r - r / 2;
+    const y = Math.random() * r - r / 2;
+    const z = Math.random() * r - r / 2;
 
     // Gets Float32Arrtay x y z position base on iterator
     particlePositions[i * 3] = x;
@@ -72,21 +107,23 @@ export const GrowthLine = ({ segmentCount, radius }) => {
     "position",
     new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage)
   );
+
+  geometry.setAttribute(
+    "color",
+    new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage)
+  );
   geometry.computeBoundingSphere();
   geometry.setDrawRange(0, 0);
 
-  console.log(particlesData);
-
   useFrame(() => {
     let prevFrameCap = Math.floor(frameCap);
-    frameCap = frameCap + 0.1;
+    frameCap = frameCap + 0.5;
 
     let vertexpos = 0;
     let colorpos = 0;
     let numConnected = 0;
 
     if (Math.floor(frameCap) - prevFrameCap === 1) {
-      console.log("hols");
       // All conections resets to 0
       for (let i = 0; i < particleCount; i++) {
         particlesData[i].numConnections = 0;
@@ -151,6 +188,15 @@ export const GrowthLine = ({ segmentCount, radius }) => {
             positions[vertexpos++] = particlePositions[j * 3];
             positions[vertexpos++] = particlePositions[j * 3 + 1];
             positions[vertexpos++] = particlePositions[j * 3 + 2];
+
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+
             numConnected++;
           }
         }
@@ -158,23 +204,25 @@ export const GrowthLine = ({ segmentCount, radius }) => {
         lineMesh.current.geometry.setDrawRange(0, numConnected * 2);
       }
       lineMesh.current.geometry.attributes.position.needsUpdate = true;
+      lineMesh.current.geometry.attributes.color.needsUpdate = true;
       particle.current.geometry.attributes.position.needsUpdate = true;
+      particle.current.visible = sDots;
+      lineMesh.current.visible = sLines;
     }
   });
-
   return (
     <>
       <group position={[0, 0, 0]}>
         <points geometry={particles} ref={particle}>
-          <pointsMaterial color={"white"} size={0.1} />
+          <pointsMaterial color={0xeeeeee} size={3} sizeAttenuation />
         </points>
         <lineSegments geometry={geometry} ref={lineMesh}>
           <lineBasicMaterial
             attach="material"
-            color={"#9c88ff"}
-            linewidth={10}
-            linecap={"round"}
-            linejoin={"round"}
+            color={0x32e0c4}
+            vertexColors
+            transparent
+            blending={THREE.AdditiveBlending}
           />
         </lineSegments>
       </group>
